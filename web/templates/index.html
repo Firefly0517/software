@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智能医疗影像处理系统 - Web版</title>
+    <style>
+        body {
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+        }
+        .img-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .img-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        .img-box img {
+            max-width: 450px;
+            max-height: 450px;
+        }
+        .btn-row {
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        function showRaw() {
+            document.getElementById("raw_box").style.display = "block";
+            document.getElementById("proc_box").style.display = "none";
+        }
+        function showProcessed() {
+            document.getElementById("raw_box").style.display = "none";
+            document.getElementById("proc_box").style.display = "block";
+        }
+        function showBoth() {
+            document.getElementById("raw_box").style.display = "block";
+            document.getElementById("proc_box").style.display = "block";
+        }
+    </script>
+</head>
+<body>
+    <h1>智能医疗影像处理系统 - Web版</h1>
+
+    <form method="post" enctype="multipart/form-data">
+        <p>请选择要上传的影像文件（DICOM/PNG/JPG）：</p>
+        <input type="file" name="image_file" required>
+        <button type="submit">开始处理</button>
+    </form>
+
+    {% if ai_result %}
+        <h2>AI 诊断结果</h2>
+        <p><strong>诊断结论：</strong>{{ ai_result["诊断结论"] }}</p>
+        <p><strong>影像编号：</strong>{{ ai_result["影像编号"] }}</p>
+        <p><strong>检查部位：</strong>{{ ai_result["检查部位"] }}</p>
+    {% endif %}
+
+    {% if raw_filename or processed_filename %}
+        <div class="btn-row">
+            <button type="button" onclick="showRaw()">仅原始影像</button>
+            <button type="button" onclick="showProcessed()">仅预处理影像</button>
+            <button type="button" onclick="showBoth()">原始 + 预处理对比</button>
+        </div>
+
+        <div class="img-container">
+            {% if raw_filename %}
+            <div class="img-box" id="raw_box">
+                <h3>原始影像</h3>
+                <img src="{{ url_for('raw_image', filename=raw_filename) }}" alt="原始影像">
+            </div>
+            {% endif %}
+
+            {% if processed_filename %}
+            <div class="img-box" id="proc_box">
+                <h3>预处理影像</h3>
+                <img src="{{ url_for('processed_image', filename=processed_filename) }}" alt="预处理影像">
+            </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if logs %}
+        <h2>处理日志</h2>
+        <pre>
+{% for line in logs %}
+{{ line }}
+{% endfor %}
+        </pre>
+    {% endif %}
+</body>
+</html>

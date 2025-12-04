@@ -1,0 +1,70 @@
+/* 全局背景 */
+QWidget {
+    background: #FAFAFA;
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    font-size: 14px;
+    color: #2C2C2C;
+}
+
+/* 主按钮（iOS 蓝） */
+QPushButton {
+    background-color: #007AFF;
+    color: white;
+    border-radius: 8px;
+    padding: 8px 16px;
+    border: none;
+    font-weight: 500;
+}
+QPushButton:hover {
+    background-color: #0A84FF;
+}
+QPushButton:pressed {
+    background-color: #0063CC;
+}
+QPushButton:disabled {
+    background-color: #CFCFCF;
+    color: #EEEEEE;
+}
+
+/* 次按钮 */
+QPushButton.secondary {
+    background-color: #E5E5EA;
+    color: #111;
+}
+QPushButton.secondary:hover {
+    background-color: #D9D9DD;
+}
+
+/* 下拉 ComboBox */
+QComboBox {
+    background: white;
+    border: 1px solid #D0D0D0;
+    border-radius: 6px;
+    padding: 6px;
+}
+QComboBox:hover { border-color: #007AFF; }
+
+/* 文本框 */
+QTextEdit {
+    background: white;
+    border: 1px solid #D0D0D0;
+    border-radius: 8px;
+    padding: 6px;
+}
+
+/* 标题 Label */
+#TitleLabel {
+    font-size: 30px;
+    font-weight: 700;
+    color: #1C1C1E;
+}
+
+/* 🍎 Apple 风格卡片：无边框 + 阴影（重点修复） */
+#Card {
+    background: #FFFFFF;
+    border-radius: 16px;
+    border: none;
+    padding: 20px;
+
+    box-shadow: 0 4px 18px rgba(0,0,0,0.05);
+}
