@@ -299,6 +299,7 @@ class MainWindow(QMainWindow):
             }
         """)
 
+
         # 设置菜单
         settings_menu = menubar.addMenu("⚙️ 设置")
         font_menu = QMenu("字体大小", self)
@@ -312,51 +313,51 @@ class MainWindow(QMainWindow):
         # 视图菜单（Dock 控制）
         self.view_menu = menubar.addMenu("🧩 视图")
 
-    # ----------------- Dock 创建 -----------------
     def _create_docks(self):
-        # 工具面板 Dock
+        # 工具面板 Dock（左侧）
         tools_widget = self._create_left_panel()
         self.dock_tools = QDockWidget("工具面板", self)
         self.dock_tools.setWidget(tools_widget)
         self._config_dock(self.dock_tools)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_tools)
 
-        # 影像视图 Dock
+        # ====== 关键修复：影像视图放在工具栏右侧，作为主 Dock ======
         image_widget = self._create_center_area()
         self.dock_image = QDockWidget("影像视图", self)
         self.dock_image.setWidget(image_widget)
         self._config_dock(self.dock_image)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_image)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_image)
+        self.splitDockWidget(self.dock_tools, self.dock_image, Qt.Horizontal)
 
-        # 影像信息 Dock
+        # 影像信息 Dock（右侧 Tab）
         info_widget = self._create_info_panel()
         self.dock_info = QDockWidget("影像信息", self)
         self.dock_info.setWidget(info_widget)
         self._config_dock(self.dock_info)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_info)
 
-        # 日志 Dock
-        log_widget = self._create_log_panel()
-        self.dock_log = QDockWidget("处理日志", self)
-        self.dock_log.setWidget(log_widget)
-        self._config_dock(self.dock_log)
-        self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_log)
-
-        # NLP Dock
+        # NLP Dock（右侧 Tab）
         nlp_widget = self._create_nlp_panel()
         self.dock_nlp = QDockWidget("文本分析（NLP）", self)
         self.dock_nlp.setWidget(nlp_widget)
         self._config_dock(self.dock_nlp)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_nlp)
 
-        # 缺省布局：信息 & NLP 在右侧堆叠为 Tab
+        # 右侧：信息 + NLP 合并成 Tab
         self.tabifyDockWidget(self.dock_info, self.dock_nlp)
         self.dock_info.raise_()
 
-        # 日志在底部，影像视图占右侧主要区域
-        # 工具在左，影像在中间，信息+NLP在右
+        # 日志 Dock（底部）
+        log_widget = self._create_log_panel()
+        self.dock_log = QDockWidget("处理日志", self)
+        self.dock_log.setWidget(log_widget)
+        self._config_dock(self.dock_log)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_log)
 
-        # 将所有 dock 的 toggleViewAction 加入“视图”菜单
+        # ====== 默认提升影像视图为主窗口焦点 ======
+        self.dock_image.raise_()
+
+        # ====== 将 Dock 的切换选项加入菜单 ======
         for dock in [self.dock_tools, self.dock_image, self.dock_info, self.dock_log, self.dock_nlp]:
             self.view_menu.addAction(dock.toggleViewAction())
 
@@ -508,12 +509,17 @@ class MainWindow(QMainWindow):
             self.view_mode_label.setStyleSheet(f"color: #CCCCCC; font-size: {size}pt;")
             self.view_mode_label.setFont(QFont("Microsoft YaHei", size))
 
+        if hasattr(self, "nlp_widget"):
+            self.nlp_widget.text_input.setFont(QFont("Microsoft YaHei", size))
+            self.nlp_widget.text_output.setFont(QFont("Microsoft YaHei", size))
+
         self.update()
         self.repaint()
         QApplication.processEvents()
 
         if hasattr(self, "text_log") and self.text_log:
             self.text_log.append(f"✓ 全局字体已更改为 {size}pt")
+
 
     # ----------------- 各 Panel Widget 构建 -----------------
     def _create_left_panel(self):
@@ -787,7 +793,7 @@ class MainWindow(QMainWindow):
         return panel
 
     def _create_log_panel(self):
-        panel = QFrame()
+        panel = QWidget()
         panel.setStyleSheet("""
             QFrame {
                 background: #252525;
