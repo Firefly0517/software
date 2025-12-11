@@ -76,53 +76,58 @@ class ModernButton(QPushButton):
         self._apply_style()
 
     def _apply_style(self):
+        # 获取主窗口的字体大小
+        main_window = self.window()
+        font_size = getattr(main_window, 'font_size', 13)
+        btn_font_size = max(10, font_size - 1)
+
         if self.primary:
-            self.setStyleSheet("""
-                QPushButton {
+            self.setStyleSheet(f"""
+                QPushButton {{
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                         stop:0 #4A90E2, stop:1 #357ABD);
                     color: white;
                     border: none;
                     border-radius: 6px;
-                    font-size: 13px;
+                    font-size: {btn_font_size}pt;
                     font-weight: 600;
                     padding: 8px 16px;
-                }
-                QPushButton:hover {
+                }}
+                QPushButton:hover {{
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                         stop:0 #5BA3F5, stop:1 #4A90E2);
-                }
-                QPushButton:pressed {
+                }}
+                QPushButton:pressed {{
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                         stop:0 #357ABD, stop:1 #2868AA);
-                }
-                QPushButton:disabled {
+                }}
+                QPushButton:disabled {{
                     background: #555555;
                     color: #888888;
-                }
+                }}
             """)
         else:
-            self.setStyleSheet("""
-                QPushButton {
+            self.setStyleSheet(f"""
+                QPushButton {{
                     background: #3A3A3A;
                     color: #E0E0E0;
                     border: 1px solid #555555;
                     border-radius: 6px;
-                    font-size: 12px;
+                    font-size: {btn_font_size}pt;
                     padding: 6px 12px;
-                }
-                QPushButton:hover {
+                }}
+                QPushButton:hover {{
                     background: #454545;
                     border-color: #4A90E2;
-                }
-                QPushButton:pressed {
+                }}
+                QPushButton:pressed {{
                     background: #2A2A2A;
-                }
-                QPushButton:disabled {
+                }}
+                QPushButton:disabled {{
                     background: #2A2A2A;
                     color: #666666;
                     border-color: #333333;
-                }
+                }}
             """)
 
 
@@ -165,7 +170,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1600, 900)
 
         # 字体大小设置
-        self.font_size = 13  # 默认字体大小
+        self.font_size = 14  # 默认字体大小改为14
 
         # 应用深色主题
         self.setStyleSheet("""
@@ -259,6 +264,9 @@ class MainWindow(QMainWindow):
         self._create_menu_bar()
         self._setup_ui()
 
+        # 初始化后立即应用字体设置
+        self.change_font_size(self.font_size)
+
     def _create_menu_bar(self):
         """创建菜单栏"""
         from PyQt5.QtWidgets import QMenuBar, QMenu, QAction
@@ -306,7 +314,7 @@ class MainWindow(QMainWindow):
         settings_menu.addMenu(font_menu)
 
     def change_font_size(self, size):
-        """改变字体大小 - 真正的全局修改"""
+        """改变字体大小 - 完全彻底的全局修改"""
         self.font_size = size
 
         # 1. 设置应用程序全局字体
@@ -314,29 +322,91 @@ class MainWindow(QMainWindow):
         base_font = QFont("Microsoft YaHei", size)
         app.setFont(base_font)
 
-        # 2. 更新所有按钮字体（自适应）
-        for btn in self.findChildren(QPushButton):
-            btn_font = QFont("Microsoft YaHei", max(10, size - 1))
-            btn.setFont(btn_font)
+        # 2. 递归更新所有控件的字体
+        def update_all_widgets(widget):
+            # 设置自己的字体
+            widget.setFont(QFont("Microsoft YaHei", size))
+            # 递归更新所有子控件
+            for child in widget.children():
+                if isinstance(child, QWidget):
+                    update_all_widgets(child)
 
-        # 3. 更新所有标签
-        for label in self.findChildren(QLabel):
-            # 跳过特殊标签
-            if label not in [self.label_history_title, self.label_current_title]:
-                label.setFont(QFont("Microsoft YaHei", size))
+        update_all_widgets(self)
 
-        # 4. 更新下拉框
-        for combo in self.findChildren(QComboBox):
-            combo.setFont(QFont("Microsoft YaHei", size))
+        # 3. 特殊处理：ModernButton 重新应用样式
+        btn_font_size = max(10, size - 1)
+        for btn in self.findChildren(ModernButton):
+            if btn.primary:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 #4A90E2, stop:1 #357ABD);
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        font-size: {btn_font_size}pt;
+                        font-weight: 600;
+                        padding: 8px 16px;
+                    }}
+                    QPushButton:hover {{
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 #5BA3F5, stop:1 #4A90E2);
+                    }}
+                    QPushButton:pressed {{
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 #357ABD, stop:1 #2868AA);
+                    }}
+                    QPushButton:disabled {{
+                        background: #555555;
+                        color: #888888;
+                    }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: #3A3A3A;
+                        color: #E0E0E0;
+                        border: 1px solid #555555;
+                        border-radius: 6px;
+                        font-size: {btn_font_size}pt;
+                        padding: 6px 12px;
+                    }}
+                    QPushButton:hover {{
+                        background: #454545;
+                        border-color: #4A90E2;
+                    }}
+                    QPushButton:pressed {{
+                        background: #2A2A2A;
+                    }}
+                    QPushButton:disabled {{
+                        background: #2A2A2A;
+                        color: #666666;
+                        border-color: #333333;
+                    }}
+                """)
 
-        # 5. 更新复选框
-        for cb in self.findChildren(QCheckBox):
-            cb.setFont(QFont("Microsoft YaHei", size))
+        # 4. 特殊处理：QGroupBox 标题字体
+        for group in self.findChildren(QGroupBox):
+            group.setStyleSheet(f"""
+                QGroupBox {{
+                    color: #CCCCCC;
+                    font-weight: 600;
+                    font-size: {size}pt;
+                    border: 1px solid #404040;
+                    border-radius: 8px;
+                    margin-top: 12px;
+                    padding-top: 12px;
+                }}
+                QGroupBox::title {{
+                    subcontrol-origin: margin;
+                    left: 12px;
+                    padding: 0 8px;
+                }}
+            """)
 
-        # 6. 更新文本框 - 关键修复
+        # 5. 特殊处理：文本框
+        log_font_size = max(9, size - 2)
         if self.text_log:
-            log_font = QFont("Consolas", max(9, size - 2))
-            self.text_log.setFont(log_font)
             self.text_log.setStyleSheet(f"""
                 QTextEdit {{
                     background: #1E1E1E;
@@ -345,26 +415,81 @@ class MainWindow(QMainWindow):
                     border-radius: 6px;
                     padding: 8px;
                     font-family: 'Consolas', 'Monaco', monospace;
-                    font-size: {max(9, size - 2)}pt;
+                    font-size: {log_font_size}pt;
                 }}
             """)
 
-        # 7. 更新信息卡片 - 关键修复
+        # 6. 特殊处理：信息卡片
+        card_title_size = max(9, size - 2)
         for card in [self.card_filename, self.card_dimensions, self.card_format]:
             if card:
-                card.title_label.setFont(QFont("Microsoft YaHei", max(9, size - 2)))
-                card.title_label.setStyleSheet(f"color: #888888; font-size: {max(9, size - 2)}pt;")
-                card.value_label.setFont(QFont("Microsoft YaHei", size))
+                card.title_label.setStyleSheet(f"color: #888888; font-size: {card_title_size}pt;")
                 card.value_label.setStyleSheet(f"color: #E0E0E0; font-weight: 600; font-size: {size}pt;")
 
-        # 8. 更新标题标签（固定小字体）
+        # 7. 特殊处理：图像标题标签
         title_size = max(9, size - 3)
-        self.label_history_title.setStyleSheet(f"color: #F5A623; font-weight: 600; font-size: {title_size}px;")
-        self.label_current_title.setStyleSheet(f"color: #7ED321; font-weight: 600; font-size: {title_size}px;")
+        self.label_history_title.setStyleSheet(f"color: #F5A623; font-weight: 600; font-size: {title_size}pt;")
+        self.label_history_title.setFont(QFont("Microsoft YaHei", title_size))
+        self.label_current_title.setStyleSheet(f"color: #7ED321; font-weight: 600; font-size: {title_size}pt;")
+        self.label_current_title.setFont(QFont("Microsoft YaHei", title_size))
 
-        # 9. 强制刷新布局
-        self.updateGeometry()
+        # 8. 特殊处理：大标题（工具面板、影像视图、信息面板）
+        title_font_size = max(16, size + 2)
+
+        self.title_tool_panel.setStyleSheet(
+            f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
+        self.title_tool_panel.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
+
+        self.title_image_view.setStyleSheet(f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF;")
+        self.title_image_view.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
+
+        self.title_info_panel.setStyleSheet(
+            f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
+        self.title_info_panel.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
+
+        self.view_mode_label.setStyleSheet(f"color: #CCCCCC; font-size: {size}pt;")
+        self.view_mode_label.setFont(QFont("Microsoft YaHei", size))
+
+        # 9. 特殊处理：下拉框样式
+        for combo in self.findChildren(QComboBox):
+            combo.setStyleSheet(f"""
+                QComboBox {{
+                    background: #2D2D2D;
+                    color: #E0E0E0;
+                    border: 1px solid #404040;
+                    border-radius: 4px;
+                    padding: 6px;
+                    min-height: 28px;
+                    font-size: {size}pt;
+                }}
+                QComboBox:hover {{
+                    border-color: #4A90E2;
+                }}
+                QComboBox::drop-down {{
+                    border: none;
+                    background: #3A3A3A;
+                }}
+                QComboBox::down-arrow {{
+                    image: none;
+                    border-left: 5px solid transparent;
+                    border-right: 5px solid transparent;
+                    border-top: 7px solid #E0E0E0;
+                    margin-right: 8px;
+                }}
+                QComboBox QAbstractItemView {{
+                    background: #2D2D2D;
+                    color: #E0E0E0;
+                    border: 1px solid #404040;
+                    selection-background-color: #4A90E2;
+                    selection-color: #FFFFFF;
+                    font-size: {size}pt;
+                }}
+            """)
+
+        # 9. 强制刷新
         self.update()
+        self.repaint()
+        QApplication.processEvents()
 
         self.text_log.append(f"✓ 全局字体已更改为 {size}pt")
 
@@ -405,9 +530,9 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 16, 16, 16)
 
         # 标题
-        title = QLabel("工具面板")
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
-        layout.addWidget(title)
+        self.title_tool_panel = QLabel("工具面板")
+        self.title_tool_panel.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
+        layout.addWidget(self.title_tool_panel)
 
         # 文件操作
         file_group = QGroupBox("文件操作")
@@ -536,20 +661,20 @@ class MainWindow(QMainWindow):
 
         # 标题栏
         title_layout = QHBoxLayout()
-        title = QLabel("影像视图")
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
-        title_layout.addWidget(title)
+        self.title_image_view = QLabel("影像视图")
+        self.title_image_view.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
+        title_layout.addWidget(self.title_image_view)
         title_layout.addStretch()
 
         # 视图切换
-        view_label = QLabel("显示模式:")
-        view_label.setStyleSheet("color: #CCCCCC; font-size: 13px;")
+        self.view_mode_label = QLabel("显示模式:")
+        self.view_mode_label.setStyleSheet("color: #CCCCCC; font-size: 13px;")
         self.combo_history = QComboBox()
         self.combo_history.addItem("当前处理结果")
         self.combo_history.setMinimumWidth(200)
         self.combo_history.currentIndexChanged.connect(self.update_view)
 
-        title_layout.addWidget(view_label)
+        title_layout.addWidget(self.view_mode_label)
         title_layout.addWidget(self.combo_history)
         layout.addLayout(title_layout)
 
@@ -616,9 +741,9 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 16, 16, 16)
 
         # 标题
-        title = QLabel("信息面板")
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
-        layout.addWidget(title)
+        self.title_info_panel = QLabel("信息面板")
+        self.title_info_panel.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
+        layout.addWidget(self.title_info_panel)
 
         # 影像信息
         info_group = QGroupBox("影像信息")
@@ -716,6 +841,10 @@ class MainWindow(QMainWindow):
         self._refresh_info(img, display_name)
         self._refresh_history_combo()
         self.update_view()
+
+        # 强制刷新界面
+        QApplication.processEvents()
+
         self.btn_undo.setEnabled(self.manager.can_undo())
         self.btn_redo.setEnabled(self.manager.can_redo())
 
@@ -738,6 +867,9 @@ class MainWindow(QMainWindow):
         self.viewer_middle.set_pixmap(pix)
         self._refresh_info(info["img"], info["display_name"])
         self._refresh_history_combo()
+
+        # 强制刷新界面，确保窗口大小正确
+        QApplication.processEvents()
 
         self.combo_action.setEnabled(True)
         self.btn_hist.setEnabled(True)
@@ -768,6 +900,11 @@ class MainWindow(QMainWindow):
 
         if "降噪" in act:
             dlg = DialogDenoise(self)
+            # 应用当前字体大小
+            dlg_font = QFont("Microsoft YaHei", self.font_size)
+            dlg.setFont(dlg_font)
+            for widget in dlg.findChildren(QWidget):
+                widget.setFont(dlg_font)
             if dlg.exec_():
                 self.current_params = dlg.result
                 self.text_log.append(f"⚙️ 参数设置: {self.current_params}")
@@ -775,6 +912,11 @@ class MainWindow(QMainWindow):
         elif "裁剪" in act:
             h, w = img.shape[:2]
             dlg = DialogCrop(self, img_width=w, img_height=h)
+            # 应用当前字体大小
+            dlg_font = QFont("Microsoft YaHei", self.font_size)
+            dlg.setFont(dlg_font)
+            for widget in dlg.findChildren(QWidget):
+                widget.setFont(dlg_font)
             if dlg.exec_():
                 self.current_params = dlg.result
                 self.text_log.append(f"⚙️ 参数设置: {self.current_params}")
@@ -901,8 +1043,8 @@ class MainWindow(QMainWindow):
 def run_qt_app():
     app = QApplication(sys.argv)
 
-    # 设置应用字体
-    font = QFont("Microsoft YaHei", 10)
+    # 设置应用字体（默认14pt）
+    font = QFont("Microsoft YaHei", 14)
     app.setFont(font)
 
     window = MainWindow()
