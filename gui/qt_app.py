@@ -426,29 +426,35 @@ class MainWindow(QMainWindow):
                 card.title_label.setStyleSheet(f"color: #888888; font-size: {card_title_size}pt;")
                 card.value_label.setStyleSheet(f"color: #E0E0E0; font-weight: 600; font-size: {size}pt;")
 
-        # 7. 特殊处理：图像标题标签
+        # 7. 特殊处理：图像标题标签（步骤/当前）
         title_size = max(9, size - 3)
-        self.label_history_title.setStyleSheet(f"color: #F5A623; font-weight: 600; font-size: {title_size}pt;")
-        self.label_history_title.setFont(QFont("Microsoft YaHei", title_size))
-        self.label_current_title.setStyleSheet(f"color: #7ED321; font-weight: 600; font-size: {title_size}pt;")
-        self.label_current_title.setFont(QFont("Microsoft YaHei", title_size))
+        if hasattr(self, 'label_history_title'):
+            self.label_history_title.setStyleSheet(f"color: #F5A623; font-weight: 600; font-size: {title_size}pt;")
+            self.label_history_title.setFont(QFont("Microsoft YaHei", title_size))
+        if hasattr(self, 'label_current_title'):
+            self.label_current_title.setStyleSheet(f"color: #7ED321; font-weight: 600; font-size: {title_size}pt;")
+            self.label_current_title.setFont(QFont("Microsoft YaHei", title_size))
 
         # 8. 特殊处理：大标题（工具面板、影像视图、信息面板）
         title_font_size = max(16, size + 2)
 
-        self.title_tool_panel.setStyleSheet(
-            f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
-        self.title_tool_panel.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
+        if hasattr(self, 'title_tool_panel'):
+            self.title_tool_panel.setStyleSheet(
+                f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
+            self.title_tool_panel.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
 
-        self.title_image_view.setStyleSheet(f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF;")
-        self.title_image_view.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
+        if hasattr(self, 'title_image_view'):
+            self.title_image_view.setStyleSheet(f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF;")
+            self.title_image_view.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
 
-        self.title_info_panel.setStyleSheet(
-            f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
-        self.title_info_panel.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
+        if hasattr(self, 'title_info_panel'):
+            self.title_info_panel.setStyleSheet(
+                f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
+            self.title_info_panel.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
 
-        self.view_mode_label.setStyleSheet(f"color: #CCCCCC; font-size: {size}pt;")
-        self.view_mode_label.setFont(QFont("Microsoft YaHei", size))
+        if hasattr(self, 'view_mode_label'):
+            self.view_mode_label.setStyleSheet(f"color: #CCCCCC; font-size: {size}pt;")
+            self.view_mode_label.setFont(QFont("Microsoft YaHei", size))
 
         # 9. 特殊处理：下拉框样式
         for combo in self.findChildren(QComboBox):

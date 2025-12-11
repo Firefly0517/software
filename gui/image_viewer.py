@@ -1,7 +1,7 @@
 import math
 from typing import List, Tuple, Optional
 
-from PyQt5.QtCore import Qt, QPoint, QRect
+from PyQt5.QtCore import Qt, QPoint, QRect, QTimer
 from PyQt5.QtGui import QPainter, QPixmap, QPen, QColor, QFont
 from PyQt5.QtWidgets import QWidget
 
@@ -14,6 +14,7 @@ class ImageViewer(QWidget):
     - ROI 框选（在 roi 模式）
     - 显示标注框
     - 显示 AI 文本
+    - 自适应图像显示
     """
 
     def __init__(self, parent=None):
@@ -51,9 +52,46 @@ class ImageViewer(QWidget):
 
     def set_pixmap(self, pixmap: QPixmap):
         self._pixmap = pixmap
-        self._scale = 1.0
-        self._offset = QPoint(0, 0)
         self._last_roi_rect_img = None
+
+        # 使用 QTimer 延迟执行自适应，确保窗口已经正确渲染
+        if pixmap and not pixmap.isNull():
+            QTimer.singleShot(100, self._fit_to_view)
+        else:
+            self._scale = 1.0
+            self._offset = QPoint(0, 0)
+            self.update()
+
+    def _fit_to_view(self):
+        """自适应缩放并居中显示图像"""
+        if not self._pixmap or self._pixmap.isNull():
+            return
+
+        view_width = self.width()
+        view_height = self.height()
+        img_width = self._pixmap.width()
+        img_height = self._pixmap.height()
+
+        if view_width <= 0 or view_height <= 0 or img_width <= 0 or img_height <= 0:
+            self._scale = 1.0
+            self._offset = QPoint(0, 0)
+            self.update()
+            return
+
+        # 计算缩放比例，留40px边距
+        margin = 40
+        scale_w = (view_width - margin) / img_width
+        scale_h = (view_height - margin) / img_height
+        self._scale = min(scale_w, scale_h, 1.0)  # 不放大，只缩小
+
+        # 居中显示
+        scaled_w = img_width * self._scale
+        scaled_h = img_height * self._scale
+        self._offset = QPoint(
+            int((view_width - scaled_w) / 2),
+            int((view_height - scaled_h) / 2)
+        )
+
         self.update()
 
     def clear(self):
