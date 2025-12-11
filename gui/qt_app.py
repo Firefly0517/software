@@ -6,11 +6,11 @@ from typing import List, Tuple
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTextEdit, QFileDialog, QLabel, QComboBox,
-    QMessageBox, QCheckBox, QFrame, QScrollArea, QSplitter,
-    QGroupBox, QButtonGroup, QRadioButton, QSizePolicy
+    QMessageBox, QCheckBox, QFrame, QGroupBox, QSizePolicy,
+    QDockWidget, QMenu, QAction
 )
-from PyQt5.QtGui import QPixmap, QImage, QFont, QIcon
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QPixmap, QImage, QFont
+from PyQt5.QtCore import Qt
 
 from gui.image_viewer import ImageViewer
 from gui.dialog_denoise import DialogDenoise
@@ -78,7 +78,6 @@ class ModernButton(QPushButton):
         self._apply_style()
 
     def _apply_style(self):
-        # 获取主窗口的字体大小
         main_window = self.window()
         font_size = getattr(main_window, 'font_size', 13)
         btn_font_size = max(10, font_size - 1)
@@ -168,13 +167,13 @@ class InfoCard(QFrame):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("智能医疗影像处理系统")
-        self.setMinimumSize(1600, 900)
+        self.setWindowTitle("智能医疗影像处理系统（Dock 版）")
+        self.resize(1600, 900)
 
         # 字体大小设置
-        self.font_size = 14  # 默认字体大小改为14
+        self.font_size = 14
 
-        # 应用深色主题
+        # 深色主题
         self.setStyleSheet("""
             QMainWindow {
                 background: #1E1E1E;
@@ -210,14 +209,6 @@ class MainWindow(QMainWindow):
                 border: 1px solid #404040;
                 selection-background-color: #4A90E2;
                 selection-color: #FFFFFF;
-            }
-            QTextEdit {
-                background: #1E1E1E;
-                color: #E0E0E0;
-                border: 1px solid #404040;
-                border-radius: 6px;
-                padding: 8px;
-                font-family: 'Consolas', 'Monaco', monospace;
             }
             QTextEdit {
                 background: #252525;
@@ -264,21 +255,22 @@ class MainWindow(QMainWindow):
         self.manager = ProcessingManager()
         self.current_params = None
 
-        # NLP 引擎（使用本地 Ollama + Qwen）
+        # NLP 引擎（Ollama + Qwen）
         self.nlp_engine = NLPEngine(NLPConfig(
-            model_name="qwen2.5:3b"  # 如果你拉的是别的名字，这里改一下
+            model_name="qwen2.5:3b"
         ))
 
-        self._create_menu_bar()
-        self._setup_ui()
+        # central widget 只占位，所有内容用 dock 实现
+        central = QWidget()
+        self.setCentralWidget(central)
 
-        # 初始化后立即应用字体设置
+        self._create_menu_bar()
+        self._create_docks()
+
         self.change_font_size(self.font_size)
 
+    # ----------------- 菜单栏 -----------------
     def _create_menu_bar(self):
-        """创建菜单栏"""
-        from PyQt5.QtWidgets import QMenuBar, QMenu, QAction
-
         menubar = self.menuBar()
         menubar.setStyleSheet("""
             QMenuBar {
@@ -309,39 +301,93 @@ class MainWindow(QMainWindow):
 
         # 设置菜单
         settings_menu = menubar.addMenu("⚙️ 设置")
-
-        # 字体大小子菜单
         font_menu = QMenu("字体大小", self)
-
         sizes = [10, 12, 14, 16, 18]
         for size in sizes:
             action = QAction(f"{size}pt", self)
             action.triggered.connect(lambda checked, s=size: self.change_font_size(s))
             font_menu.addAction(action)
-
         settings_menu.addMenu(font_menu)
 
-    def change_font_size(self, size):
-        """改变字体大小 - 完全彻底的全局修改"""
-        self.font_size = size
+        # 视图菜单（Dock 控制）
+        self.view_menu = menubar.addMenu("🧩 视图")
 
-        # 1. 设置应用程序全局字体
+    # ----------------- Dock 创建 -----------------
+    def _create_docks(self):
+        # 工具面板 Dock
+        tools_widget = self._create_left_panel()
+        self.dock_tools = QDockWidget("工具面板", self)
+        self.dock_tools.setWidget(tools_widget)
+        self._config_dock(self.dock_tools)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_tools)
+
+        # 影像视图 Dock
+        image_widget = self._create_center_area()
+        self.dock_image = QDockWidget("影像视图", self)
+        self.dock_image.setWidget(image_widget)
+        self._config_dock(self.dock_image)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_image)
+
+        # 影像信息 Dock
+        info_widget = self._create_info_panel()
+        self.dock_info = QDockWidget("影像信息", self)
+        self.dock_info.setWidget(info_widget)
+        self._config_dock(self.dock_info)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_info)
+
+        # 日志 Dock
+        log_widget = self._create_log_panel()
+        self.dock_log = QDockWidget("处理日志", self)
+        self.dock_log.setWidget(log_widget)
+        self._config_dock(self.dock_log)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_log)
+
+        # NLP Dock
+        nlp_widget = self._create_nlp_panel()
+        self.dock_nlp = QDockWidget("文本分析（NLP）", self)
+        self.dock_nlp.setWidget(nlp_widget)
+        self._config_dock(self.dock_nlp)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_nlp)
+
+        # 缺省布局：信息 & NLP 在右侧堆叠为 Tab
+        self.tabifyDockWidget(self.dock_info, self.dock_nlp)
+        self.dock_info.raise_()
+
+        # 日志在底部，影像视图占右侧主要区域
+        # 工具在左，影像在中间，信息+NLP在右
+
+        # 将所有 dock 的 toggleViewAction 加入“视图”菜单
+        for dock in [self.dock_tools, self.dock_image, self.dock_info, self.dock_log, self.dock_nlp]:
+            self.view_menu.addAction(dock.toggleViewAction())
+
+    def _config_dock(self, dock: QDockWidget):
+        dock.setFeatures(
+            QDockWidget.DockWidgetClosable |
+            QDockWidget.DockWidgetMovable |
+            QDockWidget.DockWidgetFloatable
+        )
+        dock.setAllowedAreas(
+            Qt.LeftDockWidgetArea |
+            Qt.RightDockWidgetArea |
+            Qt.TopDockWidgetArea |
+            Qt.BottomDockWidgetArea
+        )
+
+    # ----------------- 字体全局更新 -----------------
+    def change_font_size(self, size):
+        self.font_size = size
         app = QApplication.instance()
         base_font = QFont("Microsoft YaHei", size)
         app.setFont(base_font)
 
-        # 2. 递归更新所有控件的字体
         def update_all_widgets(widget):
-            # 设置自己的字体
             widget.setFont(QFont("Microsoft YaHei", size))
-            # 递归更新所有子控件
             for child in widget.children():
                 if isinstance(child, QWidget):
                     update_all_widgets(child)
 
         update_all_widgets(self)
 
-        # 3. 特殊处理：ModernButton 重新应用样式
         btn_font_size = max(10, size - 1)
         for btn in self.findChildren(ModernButton):
             if btn.primary:
@@ -393,7 +439,7 @@ class MainWindow(QMainWindow):
                     }}
                 """)
 
-        # 4. 特殊处理：QGroupBox 标题字体
+        # QGroupBox 标题字体
         for group in self.findChildren(QGroupBox):
             group.setStyleSheet(f"""
                 QGroupBox {{
@@ -412,9 +458,9 @@ class MainWindow(QMainWindow):
                 }}
             """)
 
-        # 5. 特殊处理：文本框
+        # 日志字体
         log_font_size = max(9, size - 2)
-        if self.text_log:
+        if hasattr(self, "text_log") and self.text_log:
             self.text_log.setStyleSheet(f"""
                 QTextEdit {{
                     background: #1E1E1E;
@@ -427,110 +473,50 @@ class MainWindow(QMainWindow):
                 }}
             """)
 
-        # 6. 特殊处理：信息卡片
+        # 信息卡片
         card_title_size = max(9, size - 2)
-        for card in [self.card_filename, self.card_dimensions, self.card_format]:
-            if card:
-                card.title_label.setStyleSheet(f"color: #888888; font-size: {card_title_size}pt;")
-                card.value_label.setStyleSheet(f"color: #E0E0E0; font-weight: 600; font-size: {size}pt;")
+        for card in getattr(self, "info_cards", []):
+            card.title_label.setStyleSheet(f"color: #888888; font-size: {card_title_size}pt;")
+            card.value_label.setStyleSheet(f"color: #E0E0E0; font-weight: 600; font-size: {size}pt;")
 
-        # 7. 特殊处理：图像标题标签（步骤/当前）
+        # 图像标题标签
         title_size = max(9, size - 3)
         if hasattr(self, 'label_history_title'):
-            self.label_history_title.setStyleSheet(f"color: #F5A623; font-weight: 600; font-size: {title_size}pt;")
+            self.label_history_title.setStyleSheet(
+                f"color: #F5A623; font-weight: 600; font-size: {title_size}pt;")
             self.label_history_title.setFont(QFont("Microsoft YaHei", title_size))
         if hasattr(self, 'label_current_title'):
-            self.label_current_title.setStyleSheet(f"color: #7ED321; font-weight: 600; font-size: {title_size}pt;")
+            self.label_current_title.setStyleSheet(
+                f"color: #7ED321; font-weight: 600; font-size: {title_size}pt;")
             self.label_current_title.setFont(QFont("Microsoft YaHei", title_size))
 
-        # 8. 特殊处理：大标题（工具面板、影像视图、信息面板）
+        # 大标题（工具 / 影像视图 / 信息面板）
         title_font_size = max(16, size + 2)
-
         if hasattr(self, 'title_tool_panel'):
             self.title_tool_panel.setStyleSheet(
                 f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
             self.title_tool_panel.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
-
         if hasattr(self, 'title_image_view'):
-            self.title_image_view.setStyleSheet(f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF;")
+            self.title_image_view.setStyleSheet(
+                f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF;")
             self.title_image_view.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
-
         if hasattr(self, 'title_info_panel'):
             self.title_info_panel.setStyleSheet(
                 f"font-size: {title_font_size}pt; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
             self.title_info_panel.setFont(QFont("Microsoft YaHei", title_font_size, QFont.Bold))
-
         if hasattr(self, 'view_mode_label'):
             self.view_mode_label.setStyleSheet(f"color: #CCCCCC; font-size: {size}pt;")
             self.view_mode_label.setFont(QFont("Microsoft YaHei", size))
 
-        # 9. 特殊处理：下拉框样式
-        for combo in self.findChildren(QComboBox):
-            combo.setStyleSheet(f"""
-                QComboBox {{
-                    background: #2D2D2D;
-                    color: #E0E0E0;
-                    border: 1px solid #404040;
-                    border-radius: 4px;
-                    padding: 6px;
-                    min-height: 28px;
-                    font-size: {size}pt;
-                }}
-                QComboBox:hover {{
-                    border-color: #4A90E2;
-                }}
-                QComboBox::drop-down {{
-                    border: none;
-                    background: #3A3A3A;
-                }}
-                QComboBox::down-arrow {{
-                    image: none;
-                    border-left: 5px solid transparent;
-                    border-right: 5px solid transparent;
-                    border-top: 7px solid #E0E0E0;
-                    margin-right: 8px;
-                }}
-                QComboBox QAbstractItemView {{
-                    background: #2D2D2D;
-                    color: #E0E0E0;
-                    border: 1px solid #404040;
-                    selection-background-color: #4A90E2;
-                    selection-color: #FFFFFF;
-                    font-size: {size}pt;
-                }}
-            """)
-
-        # 9. 强制刷新
         self.update()
         self.repaint()
         QApplication.processEvents()
 
-        self.text_log.append(f"✓ 全局字体已更改为 {size}pt")
+        if hasattr(self, "text_log") and self.text_log:
+            self.text_log.append(f"✓ 全局字体已更改为 {size}pt")
 
-    def _setup_ui(self):
-        central = QWidget()
-        main_layout = QHBoxLayout()
-        main_layout.setSpacing(16)
-        main_layout.setContentsMargins(16, 16, 16, 16)
-
-        # ========== 左侧工具面板 ==========
-        left_panel = self._create_left_panel()
-
-        # ========== 中间图像显示区 ==========
-        center_area = self._create_center_area()
-
-        # ========== 右侧信息面板 ==========
-        right_panel = self._create_right_panel()
-
-        main_layout.addWidget(left_panel, 2)
-        main_layout.addWidget(center_area, 5)
-        main_layout.addWidget(right_panel, 2)
-
-        central.setLayout(main_layout)
-        self.setCentralWidget(central)
-
+    # ----------------- 各 Panel Widget 构建 -----------------
     def _create_left_panel(self):
-        """创建左侧工具面板"""
         panel = QFrame()
         panel.setStyleSheet("""
             QFrame {
@@ -545,7 +531,8 @@ class MainWindow(QMainWindow):
 
         # 标题
         self.title_tool_panel = QLabel("工具面板")
-        self.title_tool_panel.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
+        self.title_tool_panel.setStyleSheet(
+            "font-size: 18px; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
         layout.addWidget(self.title_tool_panel)
 
         # 文件操作
@@ -622,8 +609,6 @@ class MainWindow(QMainWindow):
         self.btn_hist.setEnabled(False)
         self.btn_ai.setEnabled(False)
 
-
-
         advanced_layout.addWidget(self.cb_roi_mode)
         advanced_layout.addWidget(self.btn_crop_roi)
         advanced_layout.addWidget(self.btn_hist)
@@ -652,7 +637,7 @@ class MainWindow(QMainWindow):
         layout.addStretch()
         panel.setLayout(layout)
 
-        # 连接信号
+        # 信号连接
         self.btn_choose.clicked.connect(self.choose_file)
         self.combo_action.currentIndexChanged.connect(self._action_changed)
         self.btn_set_param.clicked.connect(self.set_params)
@@ -667,7 +652,6 @@ class MainWindow(QMainWindow):
         return panel
 
     def _create_center_area(self):
-        """创建中间图像显示区"""
         container = QFrame()
         container.setStyleSheet("""
             QFrame {
@@ -683,7 +667,8 @@ class MainWindow(QMainWindow):
         # 标题栏
         title_layout = QHBoxLayout()
         self.title_image_view = QLabel("影像视图")
-        self.title_image_view.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
+        self.title_image_view.setStyleSheet(
+            "font-size: 18px; font-weight: 700; color: #FFFFFF;")
         title_layout.addWidget(self.title_image_view)
         title_layout.addStretch()
 
@@ -699,11 +684,10 @@ class MainWindow(QMainWindow):
         title_layout.addWidget(self.combo_history)
         layout.addLayout(title_layout)
 
-        # 图像显示区域（上下布局）
+        # 图像显示，上：历史；下：当前
         viewers_layout = QVBoxLayout()
         viewers_layout.setSpacing(8)
 
-        # 历史步骤影像（上）
         history_container = QFrame()
         history_container.setStyleSheet("""
             QFrame {
@@ -716,7 +700,8 @@ class MainWindow(QMainWindow):
         history_layout.setContentsMargins(4, 4, 4, 4)
         history_layout.setSpacing(2)
         self.label_history_title = QLabel("步骤")
-        self.label_history_title.setStyleSheet("color: #F5A623; font-weight: 600; font-size: 11px;")
+        self.label_history_title.setStyleSheet(
+            "color: #F5A623; font-weight: 600; font-size: 11px;")
         self.label_history_title.setAlignment(Qt.AlignCenter)
         self.label_history_title.setMaximumHeight(20)
         self.viewer_middle = ImageViewer()
@@ -724,14 +709,14 @@ class MainWindow(QMainWindow):
         history_layout.addWidget(self.viewer_middle)
         history_container.setLayout(history_layout)
 
-        # 当前处理影像（下）
         current_container = QFrame()
         current_container.setStyleSheet(history_container.styleSheet())
         current_layout = QVBoxLayout()
         current_layout.setContentsMargins(4, 4, 4, 4)
         current_layout.setSpacing(2)
         self.label_current_title = QLabel("当前")
-        self.label_current_title.setStyleSheet("color: #7ED321; font-weight: 600; font-size: 11px;")
+        self.label_current_title.setStyleSheet(
+            "color: #7ED321; font-weight: 600; font-size: 11px;")
         self.label_current_title.setAlignment(Qt.AlignCenter)
         self.label_current_title.setMaximumHeight(20)
         self.viewer_current = ImageViewer()
@@ -743,12 +728,10 @@ class MainWindow(QMainWindow):
         viewers_layout.addWidget(current_container, 1)
 
         layout.addLayout(viewers_layout)
-
         container.setLayout(layout)
         return container
 
-    def _create_right_panel(self):
-        """创建右侧信息面板"""
+    def _create_info_panel(self):
         panel = QFrame()
         panel.setStyleSheet("""
             QFrame {
@@ -761,12 +744,11 @@ class MainWindow(QMainWindow):
         layout.setSpacing(16)
         layout.setContentsMargins(16, 16, 16, 16)
 
-        # 标题
         self.title_info_panel = QLabel("信息面板")
-        self.title_info_panel.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
+        self.title_info_panel.setStyleSheet(
+            "font-size: 18px; font-weight: 700; color: #FFFFFF; padding: 8px 0;")
         layout.addWidget(self.title_info_panel)
 
-        # 影像信息
         info_group = QGroupBox("影像信息")
         info_group.setStyleSheet("""
             QGroupBox {
@@ -796,14 +778,47 @@ class MainWindow(QMainWindow):
         info_group.setLayout(info_layout)
         layout.addWidget(info_group)
 
-        # 处理日志
+        layout.addStretch()
+        panel.setLayout(layout)
+
+        # 用于批量调整卡片字体
+        self.info_cards = [self.card_filename, self.card_dimensions, self.card_format]
+
+        return panel
+
+    def _create_log_panel(self):
+        panel = QFrame()
+        panel.setStyleSheet("""
+            QFrame {
+                background: #252525;
+                border-radius: 12px;
+            }
+        """)
+
+        layout = QVBoxLayout()
+        layout.setSpacing(8)
+        layout.setContentsMargins(8, 8, 8, 8)
+
         log_group = QGroupBox("处理日志")
-        log_group.setStyleSheet(info_group.styleSheet())
+        log_group.setStyleSheet("""
+            QGroupBox {
+                color: #CCCCCC;
+                font-weight: 600;
+                border: 1px solid #404040;
+                border-radius: 8px;
+                margin-top: 4px;
+                padding-top: 8px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 8px;
+            }
+        """)
         log_layout = QVBoxLayout()
 
         self.text_log = QTextEdit()
         self.text_log.setReadOnly(True)
-        self.text_log.setMaximumHeight(250)
         self.text_log.setStyleSheet("""
             QTextEdit {
                 background: #1E1E1E;
@@ -819,9 +834,38 @@ class MainWindow(QMainWindow):
         log_group.setLayout(log_layout)
         layout.addWidget(log_group)
 
-        # ===== NLP 文本分析模块 =====
+        panel.setLayout(layout)
+        return panel
+
+    def _create_nlp_panel(self):
+        panel = QFrame()
+        panel.setStyleSheet("""
+            QFrame {
+                background: #252525;
+                border-radius: 12px;
+            }
+        """)
+
+        layout = QVBoxLayout()
+        layout.setSpacing(8)
+        layout.setContentsMargins(8, 8, 8, 8)
+
         nlp_group = QGroupBox("文本分析（NLP）")
-        nlp_group.setStyleSheet(info_group.styleSheet())
+        nlp_group.setStyleSheet("""
+            QGroupBox {
+                color: #CCCCCC;
+                font-weight: 600;
+                border: 1px solid #404040;
+                border-radius: 8px;
+                margin-top: 4px;
+                padding-top: 8px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 8px;
+            }
+        """)
         nlp_layout = QVBoxLayout()
 
         self.nlp_widget = TextAnalysisWidget(self, engine=self.nlp_engine)
@@ -830,13 +874,11 @@ class MainWindow(QMainWindow):
         nlp_group.setLayout(nlp_layout)
         layout.addWidget(nlp_group)
 
-
-        layout.addStretch()
         panel.setLayout(layout)
         return panel
 
+    # ----------------- 功能逻辑 -----------------
     def _refresh_info(self, img: np.ndarray, display_name: str):
-        """更新信息面板"""
         self.card_filename.set_value(display_name)
         self.card_dimensions.set_value(f"{img.shape[1]} × {img.shape[0]}")
 
@@ -849,14 +891,14 @@ class MainWindow(QMainWindow):
         self.card_format.set_value(fmt)
 
     def _refresh_history_combo(self):
-        """更新历史下拉框"""
         self.combo_history.clear()
+        if not self.manager.has_image():
+            return
         tags = self.manager.get_history_descriptions()
         for i, t in enumerate(tags):
             self.combo_history.addItem(f"步骤 {i}: {t}")
 
     def update_view(self):
-        """更新历史视图"""
         if not self.manager.has_image():
             return
         idx = self.combo_history.currentIndex()
@@ -868,21 +910,18 @@ class MainWindow(QMainWindow):
         self.label_history_title.setText(f"步骤 {idx}")
 
     def _update_viewers_post_action(self, img, display_name):
-        """处理后更新视图"""
         pix = cv2_to_pixmap(img)
         self.viewer_current.set_pixmap(pix)
         self._refresh_info(img, display_name)
         self._refresh_history_combo()
         self.update_view()
 
-        # 强制刷新界面
         QApplication.processEvents()
 
         self.btn_undo.setEnabled(self.manager.can_undo())
         self.btn_redo.setEnabled(self.manager.can_redo())
 
     def choose_file(self):
-        """选择文件"""
         path, _ = QFileDialog.getOpenFileName(
             self, "选择影像", "", "Images (*.png *.jpg *.jpeg *.bmp *.dcm)"
         )
@@ -901,7 +940,6 @@ class MainWindow(QMainWindow):
         self._refresh_info(info["img"], info["display_name"])
         self._refresh_history_combo()
 
-        # 强制刷新界面，确保窗口大小正确
         QApplication.processEvents()
 
         self.combo_action.setEnabled(True)
@@ -912,7 +950,6 @@ class MainWindow(QMainWindow):
         self.text_log.append(f"✓ 成功加载: {info['display_name']}")
 
     def _action_changed(self):
-        """动作改变"""
         idx = self.combo_action.currentIndex()
         text = self.combo_action.currentText()
 
@@ -924,7 +961,6 @@ class MainWindow(QMainWindow):
         self.btn_apply.setEnabled(idx > 0)
 
     def set_params(self):
-        """设置参数"""
         if not self.manager.has_image():
             return
 
@@ -933,7 +969,6 @@ class MainWindow(QMainWindow):
 
         if "降噪" in act:
             dlg = DialogDenoise(self)
-            # 应用当前字体大小
             dlg_font = QFont("Microsoft YaHei", self.font_size)
             dlg.setFont(dlg_font)
             for widget in dlg.findChildren(QWidget):
@@ -945,7 +980,6 @@ class MainWindow(QMainWindow):
         elif "裁剪" in act:
             h, w = img.shape[:2]
             dlg = DialogCrop(self, img_width=w, img_height=h)
-            # 应用当前字体大小
             dlg_font = QFont("Microsoft YaHei", self.font_size)
             dlg.setFont(dlg_font)
             for widget in dlg.findChildren(QWidget):
@@ -955,7 +989,6 @@ class MainWindow(QMainWindow):
                 self.text_log.append(f"⚙️ 参数设置: {self.current_params}")
 
     def apply_action(self):
-        """应用操作"""
         if not self.manager.has_image():
             return
 
@@ -990,7 +1023,6 @@ class MainWindow(QMainWindow):
         self.current_params = None
 
     def do_undo(self):
-        """撤销"""
         info = self.manager.undo()
         if info is None:
             return
@@ -1005,7 +1037,6 @@ class MainWindow(QMainWindow):
         self.text_log.append("↶ 撤销")
 
     def do_redo(self):
-        """恢复"""
         info = self.manager.redo()
         if info is None:
             return
@@ -1020,7 +1051,6 @@ class MainWindow(QMainWindow):
         self.text_log.append("↷ 恢复")
 
     def toggle_roi_mode(self, state):
-        """切换ROI模式"""
         if state == Qt.Checked:
             self.viewer_current.set_mode("roi")
             self.text_log.append("📍 ROI 模式开启")
@@ -1029,7 +1059,6 @@ class MainWindow(QMainWindow):
             self.text_log.append("👁️ 查看模式")
 
     def crop_by_roi(self):
-        """ROI裁剪"""
         roi = self.viewer_current.get_last_roi()
         if roi is None:
             self.text_log.append("⚠️ 请先框选 ROI 区域")
@@ -1046,7 +1075,6 @@ class MainWindow(QMainWindow):
         self.text_log.append(f"✂️ ROI 裁剪: {res['tag']}")
 
     def show_histogram(self):
-        """显示直方图"""
         if not self.manager.has_image():
             return
         img = self.manager.get_current_img()
@@ -1054,7 +1082,6 @@ class MainWindow(QMainWindow):
         dlg.exec_()
 
     def run_ai(self):
-        """AI诊断"""
         if not self.manager.has_image():
             return
 
@@ -1090,16 +1117,13 @@ class MainWindow(QMainWindow):
         if img.ndim == 2:
             cv2.imwrite(path, img)
         else:
-            cv2.imwrite(path, img)  # 直接保存BGR即可
+            cv2.imwrite(path, img)
 
         QMessageBox.information(self, "完成", f"影像已保存：\n{path}")
 
 
-
 def run_qt_app():
     app = QApplication(sys.argv)
-
-    # 设置应用字体（默认14pt）
     font = QFont("Microsoft YaHei", 14)
     app.setFont(font)
 
