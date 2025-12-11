@@ -6,21 +6,90 @@ from PyQt5.QtCore import Qt
 
 
 class DialogDenoise(QDialog):
-    """
-    降噪参数选择对话框
-    支持：
-    - 中值滤波
-    - 高斯滤波
-    - 双边滤波
-    """
+    """降噪参数选择对话框"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("降噪设置")
-        self.setMinimumWidth(300)
-        self.result = None  # 返回结果
+        self.setMinimumWidth(400)
+        self.result = None
+
+        # 应用深色主题
+        self.setStyleSheet("""
+            QDialog {
+                background: #2D2D2D;
+            }
+            QLabel {
+                color: #E0E0E0;
+                font-size: 13px;
+            }
+            QComboBox {
+                background: #3A3A3A;
+                color: #E0E0E0;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 6px;
+                min-height: 28px;
+            }
+            QComboBox::drop-down {
+                border: none;
+                background: #4A4A4A;
+            }
+            QComboBox::down-arrow {
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 7px solid #E0E0E0;
+            }
+            QComboBox QAbstractItemView {
+                background: #3A3A3A;
+                color: #E0E0E0;
+                selection-background-color: #4A90E2;
+            }
+            QSpinBox {
+                background: #3A3A3A;
+                color: #E0E0E0;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                padding: 6px;
+                min-height: 28px;
+            }
+            QSpinBox::up-button, QSpinBox::down-button {
+                background: #4A4A4A;
+                border: none;
+            }
+            QSpinBox::up-arrow {
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-bottom: 6px solid #E0E0E0;
+            }
+            QSpinBox::down-arrow {
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #E0E0E0;
+            }
+            QPushButton {
+                background: #4A90E2;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 20px;
+                font-weight: 600;
+                min-height: 36px;
+            }
+            QPushButton:hover {
+                background: #5BA3F5;
+            }
+            QPushButton#cancelBtn {
+                background: #555555;
+            }
+            QPushButton#cancelBtn:hover {
+                background: #666666;
+            }
+        """)
 
         layout = QVBoxLayout()
+        layout.setSpacing(16)
+        layout.setContentsMargins(20, 20, 20, 20)
 
         # 方法选择
         hl_method = QHBoxLayout()
@@ -49,7 +118,7 @@ class DialogDenoise(QDialog):
         hl_sigma.addWidget(self.spin_sigma)
         layout.addLayout(hl_sigma)
 
-        # 双边参数（可简化）
+        # 双边参数
         hl_bi = QHBoxLayout()
         hl_bi.addWidget(QLabel("bilateral d："))
         self.spin_bi_d = QSpinBox()
@@ -62,6 +131,7 @@ class DialogDenoise(QDialog):
         hl_btn = QHBoxLayout()
         btn_ok = QPushButton("确定")
         btn_cancel = QPushButton("取消")
+        btn_cancel.setObjectName("cancelBtn")
         hl_btn.addWidget(btn_ok)
         hl_btn.addWidget(btn_cancel)
         layout.addLayout(hl_btn)
@@ -72,7 +142,6 @@ class DialogDenoise(QDialog):
         self.setLayout(layout)
 
     def apply(self):
-        """收集参数并返回"""
         method = self.combo_method.currentText()
         ksize = self.spin_ksize.value()
         sigma = self.spin_sigma.value()
