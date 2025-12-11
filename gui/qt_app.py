@@ -16,10 +16,12 @@ from gui.image_viewer import ImageViewer
 from gui.dialog_denoise import DialogDenoise
 from gui.dialog_crop import DialogCrop
 from gui.dialog_histogram import DialogHistogram
+from gui.text_analysis_widget import TextAnalysisWidget
 from core.processing_manager import ProcessingManager
 from core.annotation import AnnotationManager
 from core.ai_module import SimpleAIDiagnosis
 from core.metadata_utils import parse_metadata
+from core.nlp_module import NLPEngine, NLPConfig
 
 
 def cv2_to_pixmap(img: np.ndarray) -> QPixmap:
@@ -261,6 +263,12 @@ class MainWindow(QMainWindow):
 
         self.manager = ProcessingManager()
         self.current_params = None
+
+        # NLP 引擎（使用本地 Ollama + Qwen）
+        self.nlp_engine = NLPEngine(NLPConfig(
+            model_name="qwen2.5:3b"  # 如果你拉的是别的名字，这里改一下
+        ))
+
         self._create_menu_bar()
         self._setup_ui()
 
@@ -560,6 +568,11 @@ class MainWindow(QMainWindow):
         file_layout = QVBoxLayout()
         self.btn_choose = ModernButton("📂 选择影像", primary=True)
         file_layout.addWidget(self.btn_choose)
+
+        self.btn_save_image = ModernButton("💾 保存当前影像")
+        file_layout.addWidget(self.btn_save_image)
+        self.btn_save_image.clicked.connect(self.save_current_image)
+
         file_group.setLayout(file_layout)
         layout.addWidget(file_group)
 
@@ -608,6 +621,8 @@ class MainWindow(QMainWindow):
         self.btn_crop_roi.setEnabled(False)
         self.btn_hist.setEnabled(False)
         self.btn_ai.setEnabled(False)
+
+
 
         advanced_layout.addWidget(self.cb_roi_mode)
         advanced_layout.addWidget(self.btn_crop_roi)
@@ -803,6 +818,18 @@ class MainWindow(QMainWindow):
         log_layout.addWidget(self.text_log)
         log_group.setLayout(log_layout)
         layout.addWidget(log_group)
+
+        # ===== NLP 文本分析模块 =====
+        nlp_group = QGroupBox("文本分析（NLP）")
+        nlp_group.setStyleSheet(info_group.styleSheet())
+        nlp_layout = QVBoxLayout()
+
+        self.nlp_widget = TextAnalysisWidget(self, engine=self.nlp_engine)
+        nlp_layout.addWidget(self.nlp_widget)
+
+        nlp_group.setLayout(nlp_layout)
+        layout.addWidget(nlp_group)
+
 
         layout.addStretch()
         panel.setLayout(layout)
@@ -1044,6 +1071,29 @@ class MainWindow(QMainWindow):
         self.viewer_current.set_ai_text(ai_res["诊断结论"])
 
         self.text_log.append(f"🤖 AI 诊断: {ai_res['诊断结论']}")
+
+    def save_current_image(self):
+        img = self.manager.get_current_img()
+        if img is None:
+            QMessageBox.warning(self, "提示", "当前没有可保存的影像")
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "保存影像",
+            "processed.png",
+            "PNG Image (*.png);;JPG Image (*.jpg)"
+        )
+        if not path:
+            return
+
+        if img.ndim == 2:
+            cv2.imwrite(path, img)
+        else:
+            cv2.imwrite(path, img)  # 直接保存BGR即可
+
+        QMessageBox.information(self, "完成", f"影像已保存：\n{path}")
+
 
 
 def run_qt_app():
