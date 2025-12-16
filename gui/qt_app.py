@@ -217,7 +217,6 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
                 padding: 8px;
                 font-family: 'Consolas', 'Monaco', monospace;
-                font-size: 12px;
             }
             QCheckBox {
                 color: #E0E0E0;
@@ -321,6 +320,12 @@ class MainWindow(QMainWindow):
         self._config_dock(self.dock_tools)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_tools)
 
+        self.setDockOptions(
+            QMainWindow.AllowTabbedDocks |
+            QMainWindow.AllowNestedDocks |
+            QMainWindow.AnimatedDocks
+        )
+
         # ====== 关键修复：影像视图放在工具栏右侧，作为主 Dock ======
         image_widget = self._create_center_area()
         self.dock_image = QDockWidget("影像视图", self)
@@ -373,6 +378,7 @@ class MainWindow(QMainWindow):
             Qt.TopDockWidgetArea |
             Qt.BottomDockWidgetArea
         )
+        dock.setContentsMargins(4, 4, 4, 4)
 
     # ----------------- 字体全局更新 -----------------
     def change_font_size(self, size):
